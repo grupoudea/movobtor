@@ -17,8 +17,6 @@ seguidor = Seguidor()
 cap = cv.VideoCapture("video1-horizontal-slow.mp4")
 deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
 
-
-
 while True:
 
     ret, frame = cap.read()
@@ -67,19 +65,22 @@ while True:
 
     for contorno in contornos:
         area = cv.contourArea(contorno)
-        if area > 50:
+        print("AREAW: ", area)
+        if area > 5999:
             x, y, w, h = cv.boundingRect(contorno)
             print("detectando rec: x,y,w,h", x, y, w, h)
-
+            cv.rectangle(frame, (x,y), (x+w, y+h), (255,255,0), 3)
             detecciones.append([x, y, w, h])
 
     objecto_id = seguidor.rastrear(detecciones)
 
     for objeto in objecto_id:
         x, y, ancho, alto, id = objeto
+        cv.putText(frame, f'({x},{y})', (x,y-15), cv.FONT_HERSHEY_PLAIN, 1, (0,255,255), 2)
 
         print("pintando rec: x,y,w,h", x, y, ancho, alto)
-        cv.rectangle(frame, (x, y - 10), (x + ancho, y + alto), (0, 0, 255), 2)
+        # pintamos rectangulo rojo
+        # cv.rectangle(frame, (x, y - 10), (x + ancho, y + alto), (0, 0, 255), 2)
         cx = int(x + ancho / 2)
         cy = int(y + alto / 2)
         print("Centro en x=", cx, "centro en y=", cy)
@@ -100,15 +101,15 @@ while True:
 
     # muestra el video
     cv.imshow("Video", frame)
-    # cv.imshow("Frame alterado", cierre)
+    cv.imshow("Frame alterado", cierre)
 
-    key = cv.waitKey(1)  # Esperar 1 milisegundo
+    key = cv.waitKey(int(1000/25))  # Esperar 1 milisegundo
 
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
     # Espera durante un número de segundos definido en 'tiempo_espera'
-    time.sleep(0.25)
+    time.sleep(2)
 
 # Liberar la cámara
 cap.release()
