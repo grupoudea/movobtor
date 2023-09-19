@@ -17,37 +17,30 @@ seguidor = Seguidor()
 cap = cv.VideoCapture("video1-horizontal-slow.mp4")
 deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
 
+v_a = [250, 415]
+v_b = [390, 415]
+v_c = [390, 560]
+v_d = [250, 560]
 
+v_e = [970, 370]
+v_f = [1117, 370]
+v_g = [1117, 505]
+v_h = [970, 505]
 
-while True:
-
-    ret, frame = cap.read()
-
+def get_dimensions(frame):
     if frame is not None:
         height, width = frame.shape[:2]
-        print("height", height)
-        print("width", width)
+        return height, width
+    else:
+        return None
 
-    if not ret:
-        # El video ha terminado, reiniciar la reproducción
-        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        continue  # Continuar desde el principio
-
-
-
-    mask = np.zeros((height, width), dtype=np.uint8)
-
-    # Definir los puntos para el cuadro
-    pts = np.array([[250, 415], [390, 415], [390, 560], [250, 560]], np.int32)
+def dibujar_cuadro(a, b, c, d):
+    pts = np.array([a, b, c, d], np.int32)
     pts = pts.reshape((-1, 1, 2))
-
-    pts2 = np.array([[970, 370], [1117, 370], [1117, 505], [970, 505]], np.int32)
-    pts2 = pts2.reshape((-1, 1, 2))
-
-    # Dibujar el cuadro
     cv.polylines(frame, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
-    cv.polylines(frame, [pts2], isClosed=True, color=(255, 0, 0), thickness=2)
+    return pts
 
+def configurar_contorno(frame):
     mascara = deteccion.apply(frame)
     filtro = cv.GaussianBlur(mascara, (11, 11), 0)
 
@@ -56,21 +49,42 @@ while True:
 
     # dilatamos
     dilatacion = cv.dilate(umbral, np.ones((3, 3)))
-
     kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-
     cierre = cv.morphologyEx(dilatacion, cv.MORPH_CLOSE, kernel)
-
     contornos, _ = cv.findContours(cierre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    return contornos
+
+def indicar_colision(pts, frame, cx, cy, x, y):
+    area = cv.pointPolygonTest(pts, (cx, cy), False)
+    if area >= 0:
+        cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
+        cv.putText(frame, f'ENTRAMOS 1 (x, y): ({x}, {y})', (10, 30),
+                   cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+while True:
+
+    ret, frame = cap.read()
+
+    if not ret:
+        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+        continue  # reiniciar la reproducción
+
+    height, width = get_dimensions(frame)
+
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    # Definir los puntos para el cuadro
+    pts = dibujar_cuadro(v_a, v_b, v_c, v_d)
+    pts2 = dibujar_cuadro(v_e, v_f, v_g, v_h)
 
     detecciones = []
 
+    contornos = configurar_contorno(frame)
     for contorno in contornos:
         area = cv.contourArea(contorno)
         if area > 50:
             x, y, w, h = cv.boundingRect(contorno)
             print("detectando rec: x,y,w,h", x, y, w, h)
-
             detecciones.append([x, y, w, h])
 
     objecto_id = seguidor.rastrear(detecciones)
@@ -84,19 +98,9 @@ while True:
         cy = int(y + alto / 2)
         print("Centro en x=", cx, "centro en y=", cy)
 
-        a2 = cv.pointPolygonTest(pts, (cx, cy), False)
-        a3 = cv.pointPolygonTest(pts2, (cx, cy), False)
-        print("a2: ", a2)
+        indicar_colision(pts, frame, cx, cy, x, y)
+        indicar_colision(pts2, frame, cx, cy, x, y)
 
-        if a2 >= 0:
-            cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
-            cv.putText(frame, f'ENTRAMOS 1 (x, y): ({x}, {y})', (10, 30),
-                       cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-        if a3 >= 0:
-            cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
-            cv.putText(frame, f'ENTRAMOS 2 (x, y): ({x}, {y})', (10, 30),
-                       cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     # muestra el video
     cv.imshow("Video", frame)
