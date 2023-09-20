@@ -27,14 +27,7 @@ v_f = [1117, 370]
 v_g = [1117, 505]
 v_h = [970, 505]
 
-def get_dimensions(frame):
-    if frame is not None:
-        height, width = frame.shape[:2]
-        return height, width
-    else:
-        return None
-
-def dibujar_cuadro(a, b, c, d):
+def dibujar_area(a, b, c, d):
     pts = np.array([a, b, c, d], np.int32)
     pts = pts.reshape((-1, 1, 2))
     cv.polylines(frame, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
@@ -70,13 +63,9 @@ while True:
         cap.set(cv.CAP_PROP_POS_FRAMES, 0)
         continue  # reiniciar la reproducción
 
-    height, width = get_dimensions(frame)
-
-    mask = np.zeros((height, width), dtype=np.uint8)
-
     # Definir los puntos para el cuadro
-    pts = dibujar_cuadro(v_a, v_b, v_c, v_d)
-    pts2 = dibujar_cuadro(v_e, v_f, v_g, v_h)
+    pts = dibujar_area(v_a, v_b, v_c, v_d)
+    pts2 = dibujar_area(v_e, v_f, v_g, v_h)
 
     detecciones = []
 

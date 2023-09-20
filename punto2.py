@@ -1,11 +1,12 @@
 import time
 import numpy as np
 import cv2 as cv
+
 from seguidor import Seguidor
 
 seguidor = Seguidor()
 
-cap = cv.VideoCapture("videoPunto2-horizontal1.mp4")
+cap = cv.VideoCapture("video1280-horizontal.mp4")
 fps = cap.get(cv.CAP_PROP_FPS)
 print("fps: ", fps)
 deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
@@ -13,37 +14,17 @@ deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
 # 90,0   90, 720
 # 1094,0   1094,720
 
-# Medida conocida en el video (en píxeles) y su correspondiente en el mundo real (en cm)
-distancia_pixeles = 100
-distancia_cm = 10
+ancho_video_total = 1280
+ancho_area_interes = 1094 - 90
+ancho_en_cm = 90
+total_area_cm = (ancho_en_cm*ancho_area_interes)/ancho_video_total
 
-# Calcula la relación píxeles/cm
-relacion_pixeles_cm = distancia_pixeles / distancia_cm
+v_a = [90, 0]
+v_b = [1094, 0]
+v_c = [1094, 720]
+v_d = [90, 720]
 
-while True:
-    ret, frame = cap.read()
-
-    if not ret:
-        # El video ha terminado, reiniciar la reproducción
-        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        continue  # Continuar desde el principio
-
-    if frame is not None:
-        height, width = frame.shape[:2]
-        print("height", height)
-        print("width", width)
-    else:
-        break  # Ignorar frames vacíos o con dimensiones no válidas
-
-    mask = np.zeros((height, width), dtype=np.uint8)
-
-    # Definir los puntos para el cuadro
-    pts = np.array([[90, 0], [90, 720], [1094, 720], [1094, 0]], np.int32)
-    pts = pts.reshape((-1, 1, 2))
-
-    # Dibujar el cuadro
-    cv.polylines(frame, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
-
+def configurar_contorno(frame):
     mascara = deteccion.apply(frame)
     filtro = cv.GaussianBlur(mascara, (11, 11), 0)
 
@@ -52,48 +33,63 @@ while True:
 
     # dilatamos
     dilatacion = cv.dilate(umbral, np.ones((3, 3)))
-
     kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-
     cierre = cv.morphologyEx(dilatacion, cv.MORPH_CLOSE, kernel)
-
     contornos, _ = cv.findContours(cierre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    return contornos
 
+def dibujar_area(a, b, c, d):
+    pts = np.array([a, b, c, d], np.int32)
+    pts = pts.reshape((-1, 1, 2))
+    cv.polylines(frame, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
+    return pts
+
+
+while True:
+    ret, frame = cap.read()
+
+    if not ret:
+        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+        continue  # reiniciar la reproducción
+
+    pts = dibujar_area(v_a, v_b, v_c, v_d)
+
+    contornos = configurar_contorno(frame)
     detecciones = []
 
     for contorno in contornos:
         area = cv.contourArea(contorno)
-        print("AREAW: ", area)
-        if area > 2000:
+        if area > 1000:
             x, y, w, h = cv.boundingRect(contorno)
-            print("detectando rec: x,y,w,h", x, y, w, h)
             cv.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 0), 3)
             detecciones.append([x, y, w, h])
 
-    objecto_id = seguidor.rastrear(detecciones)
+    coordenadas_contornos = seguidor.rastrear(detecciones)
 
-    for objeto in objecto_id:
-        x, y, ancho, alto, id = objeto
+    if frame is not None:
+        height, width = frame.shape[:2]
+
+    for coordenada in coordenadas_contornos:
+        x, y, ancho, alto, id = coordenada
+
+        if height == alto or width == ancho:
+            continue
+
         cv.putText(frame, f'({x},{y})', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
 
-        print("pintando rec: x,y,w,h", x, y, ancho, alto)
-        # pintamos rectangulo rojo
-        # cv.rectangle(frame, (x, y - 10), (x + ancho, y + alto), (0, 0, 255), 2)
         cx = int(x + ancho / 2)
         cy = int(y + alto / 2)
-        print("Centro en x=", cx, "centro en y=", cy)
 
         a2 = cv.pointPolygonTest(pts, (cx, cy), False)
-        print("a2: ", a2)
 
         if a2 >= 0:
             cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
-
+        else:
+            print("No esta en el area")
 
     # Muestra el video
     if frame is not None:
         cv.imshow("Video", frame)
-        # cv.imshow("Filtro", cierre)
     else:
         break
 
@@ -102,7 +98,7 @@ while True:
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
-    time.sleep(2)
+    time.sleep(0.5)
 
 
 # Liberar la cámara
