@@ -1,7 +1,5 @@
-import time
-
-import numpy as np
 import cv2 as cv
+import numpy as np
 
 from seguidor import Seguidor
 
@@ -27,11 +25,13 @@ v_f = [1117, 370]
 v_g = [1117, 505]
 v_h = [970, 505]
 
+
 def dibujar_area(a, b, c, d):
     pts = np.array([a, b, c, d], np.int32)
     pts = pts.reshape((-1, 1, 2))
     cv.polylines(frame, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
     return pts
+
 
 def configurar_contorno(frame):
     mascara = deteccion.apply(frame)
@@ -47,6 +47,19 @@ def configurar_contorno(frame):
     contornos, _ = cv.findContours(cierre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     return contornos
 
+
+def generar_detecciones(frame):
+    detecciones = []
+    contornos = configurar_contorno(frame)
+    for contorno in contornos:
+        area = cv.contourArea(contorno)
+        if area > 5999:
+            x, y, w, h = cv.boundingRect(contorno)
+            cv.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 0), 3)
+            detecciones.append([x, y, w, h])
+    return detecciones
+
+
 def indicar_colision(pts, frame, cx, cy, x, y):
     area = cv.pointPolygonTest(pts, (cx, cy), False)
     if area >= 0:
@@ -55,33 +68,10 @@ def indicar_colision(pts, frame, cx, cy, x, y):
                    cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 
-while True:
-
-    ret, frame = cap.read()
-
-    if not ret:
-        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        continue  # reiniciar la reproducción
-
-    # Definir los puntos para el cuadro
-    pts = dibujar_area(v_a, v_b, v_c, v_d)
-    pts2 = dibujar_area(v_e, v_f, v_g, v_h)
-
-    detecciones = []
-
-    contornos = configurar_contorno(frame)
-    for contorno in contornos:
-        area = cv.contourArea(contorno)
-        if area > 5999:
-            x, y, w, h = cv.boundingRect(contorno)
-            cv.rectangle(frame, (x,y), (x+w, y+h), (255,255,0), 3)
-            detecciones.append([x, y, w, h])
-
-    objecto_id = seguidor.rastrear(detecciones)
-
-    for objeto in objecto_id:
-        x, y, ancho, alto, id = objeto
-        cv.putText(frame, f'({x},{y})', (x,y-15), cv.FONT_HERSHEY_PLAIN, 1, (0,255,255), 2)
+def calcular_colision(coordenadas_contornos):
+    for coordenada in coordenadas_contornos:
+        x, y, ancho, alto, id = coordenada
+        cv.putText(frame, f'({x},{y})', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
 
         # pintamos rectangulo rojo
         # cv.rectangle(frame, (x, y - 10), (x + ancho, y + alto), (0, 0, 255), 2)
@@ -92,14 +82,28 @@ while True:
         indicar_colision(pts2, frame, cx, cy, x, y)
 
 
+while True:
+    ret, frame = cap.read()
+
+    if not ret:
+        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+        continue  # reiniciar la reproducción
+
+    # Definir los puntos para el cuadro
+    pts = dibujar_area(v_a, v_b, v_c, v_d)
+    pts2 = dibujar_area(v_e, v_f, v_g, v_h)
+
+    detecciones = generar_detecciones(frame)
+
+    coordenadas_contornos = seguidor.rastrear(detecciones)
+
+    calcular_colision(coordenadas_contornos)
+
     # muestra el video
     cv.imshow("Video", frame)
-
-    key = cv.waitKey(int(1000/25))  # Esperar 1 milisegundo
-
+    key = cv.waitKey(int(1000 / 25))  # Esperar 1 milisegundo
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
-
 
 # Liberar la cámara
 cap.release()
