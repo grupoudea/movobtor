@@ -66,6 +66,7 @@ while True:
         cap.set(cv.CAP_PROP_POS_FRAMES, 0)
         vector_velocidad = {}
         primer_frame = True
+        frame_anterior = True
         continue  # reiniciar la reproducción
 
     pts = dibujar_area(v_a, v_b, v_c, v_d)
@@ -108,27 +109,27 @@ while True:
             if primer_frame:
                 primer_frame = False
                 tiempo_inicial = 0
-                distancia_inicial_px = 0
+                distancia_inicial_cm = 0
 
             else:
                 _, tiempo_final_anterior, _, distancia_final_anterior, _ = vector_velocidad[idFrameAnterior]
                 tiempo_inicial = tiempo_final_anterior
-                distancia_inicial_px = distancia_final_anterior
+                distancia_inicial_cm = distancia_final_anterior
 
             tiempo_final = time.time() - tiempo_entra_area
-            distancia_final_px = x - punto_inicial
+
+            distancia_px = x - punto_inicial
+            distancia_final_cm = (distancia_px*total_area_cm)/ancho_area_interes
 
             velocidad_instantanea = 0
             if (tiempo_final - tiempo_inicial) > 0:
-                velocidad_instantanea = (distancia_final_px - distancia_inicial_px) / (tiempo_final - tiempo_inicial)
+                velocidad_instantanea = (distancia_final_cm - distancia_inicial_cm) / (tiempo_final - tiempo_inicial)
 
             vector_velocidad[id] = (
-            tiempo_inicial, tiempo_final, distancia_inicial_px, distancia_final_px, velocidad_instantanea)
+            tiempo_inicial, tiempo_final, distancia_inicial_cm, distancia_final_cm, velocidad_instantanea)
             idFrameAnterior = id
 
-            cv.putText(frame, f'{velocidad_instantanea} px/s', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
-
-            cv.putText(frame, f'({velocidad_instantanea})', (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv.putText(frame, f'{velocidad_instantanea} cm/s', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
 
         else:
             print("No esta en el area")
@@ -148,7 +149,7 @@ while True:
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
-    # time.sleep(2.5)
+    # time.sleep(1)
 
 # Liberar la cámara
 cap.release()
