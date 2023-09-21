@@ -14,15 +14,19 @@ deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
 # 90,0   90, 720
 # 1094,0   1094,720
 
+punto_inicial = 90
+punto_final = 1094
 ancho_video_total = 1280
-ancho_area_interes = 1094 - 90
+ancho_area_interes = punto_final - punto_inicial
 ancho_en_cm = 90
-total_area_cm = (ancho_en_cm*ancho_area_interes)/ancho_video_total
+total_area_cm = (ancho_en_cm * ancho_area_interes) / ancho_video_total
+tiempo_entra_area = 0
 
 v_a = [90, 0]
 v_b = [1094, 0]
 v_c = [1094, 720]
 v_d = [90, 720]
+
 
 def configurar_contorno(frame):
     mascara = deteccion.apply(frame)
@@ -38,6 +42,7 @@ def configurar_contorno(frame):
     contornos, _ = cv.findContours(cierre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     return contornos
 
+
 def dibujar_area(a, b, c, d):
     pts = np.array([a, b, c, d], np.int32)
     pts = pts.reshape((-1, 1, 2))
@@ -45,11 +50,22 @@ def dibujar_area(a, b, c, d):
     return pts
 
 
+tiempo_inicial = 0
+tiempo_final = 0
+primer_frame = True
+frame_anterior = True
+
+# [id, ti, tf, xi, xf, v, a]
+vector_velocidad = {}
+idFrameAnterior = 0
+
 while True:
     ret, frame = cap.read()
 
     if not ret:
         cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+        vector_velocidad = {}
+        primer_frame = True
         continue  # reiniciar la reproducción
 
     pts = dibujar_area(v_a, v_b, v_c, v_d)
@@ -75,17 +91,51 @@ while True:
         if height == alto or width == ancho:
             continue
 
-        cv.putText(frame, f'({x},{y})', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
-
+        # cv.putText(frame, f'({x},{y})', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
+        print("x=",x)
         cx = int(x + ancho / 2)
         cy = int(y + alto / 2)
 
         a2 = cv.pointPolygonTest(pts, (cx, cy), False)
 
+        if x + ancho >= 90 and frame_anterior:
+            frame_anterior = False
+            tiempo_entra_area = time.time()
+
         if a2 >= 0:
             cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
+
+            if primer_frame:
+                primer_frame = False
+                tiempo_inicial = 0
+                distancia_inicial_px = 0
+
+            else:
+                _, tiempo_final_anterior, _, distancia_final_anterior, _ = vector_velocidad[idFrameAnterior]
+                tiempo_inicial = tiempo_final_anterior
+                distancia_inicial_px = distancia_final_anterior
+
+            tiempo_final = time.time() - tiempo_entra_area
+            distancia_final_px = x - punto_inicial
+
+            velocidad_instantanea = 0
+            if (tiempo_final - tiempo_inicial) > 0:
+                velocidad_instantanea = (distancia_final_px - distancia_inicial_px) / (tiempo_final - tiempo_inicial)
+
+            vector_velocidad[id] = (
+            tiempo_inicial, tiempo_final, distancia_inicial_px, distancia_final_px, velocidad_instantanea)
+            idFrameAnterior = id
+
+            cv.putText(frame, f'{velocidad_instantanea} px/s', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
+
+            cv.putText(frame, f'({velocidad_instantanea})', (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
         else:
             print("No esta en el area")
+
+    print("tiempo_inicial = ", tiempo_inicial)
+    print("tiempo_final = ", tiempo_final)
+    print("vector_velocidad = ", vector_velocidad)
 
     # Muestra el video
     if frame is not None:
@@ -98,8 +148,7 @@ while True:
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
-    time.sleep(0.5)
-
+    # time.sleep(2.5)
 
 # Liberar la cámara
 cap.release()
