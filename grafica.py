@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 
 def generar_grafica(vector_velocidad):
-    # Tu tupla de datos
     data = vector_velocidad
 
     tiempo_inicial = []
