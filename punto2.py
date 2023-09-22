@@ -3,7 +3,7 @@ import time
 import cv2 as cv
 import numpy as np
 
-from grafica import generar_grafica
+from grafica import generar_grafica_distancia_x_tiempo, generar_grafica_velocidad_x_tiempo
 from seguidor import Seguidor
 
 seguidor = Seguidor()
@@ -30,10 +30,12 @@ v_d = [90, 720]
 
 is_primer_frame = True
 is_frame_anterior = True
+is_velocidad_inicial = True
 tiempo_entra_area = 0
 idFrameAnterior = 0
+velocidad_punto_inicial = 0
 
-# [id, ti, tf, xi, xf, v, a]
+# [id, ti, tf, xi, xf, vi, vf, a]
 vector_velocidad = {}
 
 
@@ -76,7 +78,6 @@ def get_tiempo_entra_area(x, ancho):
     if x + ancho >= punto_inicial and is_frame_anterior:
         is_frame_anterior = False
         tiempo_entra_area = time.time()
-    print("tiempo_entra_area=",tiempo_entra_area)
     return tiempo_entra_area
 
 
@@ -87,7 +88,7 @@ def get_tiempo_distancia_inicial():
         tiempo_inicial = 0
         distancia_inicial_cm = 0
     else:
-        _, tiempo_final_anterior, _, distancia_final_anterior, _ = vector_velocidad[idFrameAnterior]
+        _, tiempo_final_anterior, _, distancia_final_anterior, _, _, _ = vector_velocidad[idFrameAnterior]
         tiempo_inicial = tiempo_final_anterior
         distancia_inicial_cm = distancia_final_anterior
 
@@ -97,19 +98,50 @@ def get_tiempo_distancia_inicial():
 def get_tiempo_distancia_final(x):
     tiempo_final = time.time() - tiempo_entra_area
     distancia_px = x - punto_inicial
-    distancia_final_cm = (distancia_px * total_area_cm) / ancho_area_interes
+    distancia_final_cm = parse_px_to_cm(distancia_px)
     return tiempo_final, distancia_final_cm
 
 
-def get_velocidad_instantanea(tiempo_inicial, tiempo_final, distancia_inicial_cm, distancia_final_cm):
+def get_velocidad_inicial(velocidad_punto_inicial):
+    global is_velocidad_inicial
+    if is_velocidad_inicial:
+        is_velocidad_inicial = False
+        velocidad_inicial = velocidad_punto_inicial
+    else:
+        _, _, _, _, _, velocidad_final_anterior, _ = vector_velocidad[idFrameAnterior]
+        velocidad_inicial = velocidad_final_anterior
+    return velocidad_inicial
+
+
+def parse_px_to_cm(distancia_px):
+    return (distancia_px * total_area_cm) / ancho_area_interes
+
+
+def get_velocidad_instantanea(ti, tf, di, df):
     velocidad_instantanea = 0
-    if (tiempo_final - tiempo_inicial) > 0:
-        velocidad_instantanea = (distancia_final_cm - distancia_inicial_cm) / (tiempo_final - tiempo_inicial)
+    if (tf - ti) > 0:
+        velocidad_instantanea = (df - di) / (tf - ti)
     return velocidad_instantanea
 
 
+def get_aceleracion(ti, tf, vi, vf):
+    aceleracion = 0
+    if (tf - ti) > 0:
+        aceleracion = (vf - vi) / (tf - ti)
+    return aceleracion
+
+def calcular_velocidad_inicial(x):
+    tiempo_inicial_i = 0
+    tiempo_final_i = time.time()
+    distancia_inicial_i = 0
+    distancia_final_i_px = x
+    distancia_final_cm = parse_px_to_cm(distancia_final_i_px)
+    velocidad = get_velocidad_instantanea(tiempo_inicial_i, tiempo_final_i, distancia_inicial_i, distancia_final_cm)
+    return velocidad
+
+
 def calcular_vector_velocidad(frame, coordenadas_contornos, pts):
-    global tiempo_entra_area, idFrameAnterior
+    global tiempo_entra_area, idFrameAnterior, is_velocidad_inicial, velocidad_punto_inicial
 
     if frame is not None:
         height, width = frame.shape[:2]
@@ -120,6 +152,10 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts):
         # validar si el objeto capturado es el frame total
         if height == alto or width == ancho:
             continue
+
+        if x <= punto_inicial:
+            is_velocidad_inicial = True
+            velocidad_punto_inicial = calcular_velocidad_inicial(x)
 
         # calcular los centros
         cx = int(x + ancho / 2)
@@ -134,18 +170,22 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts):
 
             tiempo_inicial, distancia_inicial = get_tiempo_distancia_inicial()
             tiempo_final, distancia_final = get_tiempo_distancia_final(x)
+            velocidad_inicial = get_velocidad_inicial(velocidad_punto_inicial)
 
-            velocidad_instantanea = get_velocidad_instantanea(tiempo_inicial, tiempo_final,
-                                                              distancia_inicial, distancia_final)
+            velocidad_final = get_velocidad_instantanea(tiempo_inicial, tiempo_final,
+                                                        distancia_inicial, distancia_final)
+
+            aceleracion = get_aceleracion(tiempo_inicial, tiempo_final, velocidad_inicial, velocidad_final)
 
             vector_velocidad[id] = (
                 tiempo_inicial, tiempo_final,
                 distancia_inicial, distancia_final,
-                velocidad_instantanea
+                velocidad_inicial, velocidad_final,
+                aceleracion
             )
             idFrameAnterior = id
 
-            cv.putText(frame, f'{velocidad_instantanea} cm/s', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
+            cv.putText(frame, f'{velocidad_final} cm/s', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
 
 
 while True:
@@ -153,7 +193,8 @@ while True:
 
     if not ret:
         cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        generar_grafica(vector_velocidad)
+        generar_grafica_distancia_x_tiempo(vector_velocidad)
+        generar_grafica_velocidad_x_tiempo(vector_velocidad)
         is_primer_frame = True
         is_frame_anterior = True
         vector_velocidad = {}
@@ -168,7 +209,7 @@ while True:
 
     calcular_vector_velocidad(frame, coordenadas_contornos, pts)
 
-    # print("vector_velocidad = ", vector_velocidad)
+    print("vector_velocidad = ", vector_velocidad)
 
     # Muestra el video
     if frame is not None:
@@ -181,7 +222,7 @@ while True:
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
-    # time.sleep(1)
+    # time.sleep(0.5)
 
 # Liberar la cámara
 cap.release()
