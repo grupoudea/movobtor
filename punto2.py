@@ -185,7 +185,8 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts):
             )
             idFrameAnterior = id
 
-            cv.putText(frame, f'{velocidad_final} cm/s', (x, y - 15), cv.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
+            cv.putText(frame, f'{round(velocidad_final, 2)} cm/s', (x, y - 15), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            cv.putText(frame, f'{round(aceleracion, 4)} cm/s^2', (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
 
 while True:
@@ -222,7 +223,7 @@ while True:
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
-    # time.sleep(0.5)
+    time.sleep(1.5)
 
 # Liberar la cámara
 cap.release()
