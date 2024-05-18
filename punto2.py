@@ -218,12 +218,12 @@ while True:
     else:
         break
 
-    key = cv.waitKey(int(1000 / fps))  # Esperar 1 milisegundo
+    key = cv.waitKey(120)  # Esperar 1 milisegundo
 
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
 
-    time.sleep(1.5)
+    # time.sleep(1.5)
 
 # Liberar la cámara
 cap.release()

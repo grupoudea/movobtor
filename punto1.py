@@ -3,18 +3,16 @@ import numpy as np
 
 from seguidor import Seguidor
 
-carI = {}
-carO = {}
-pruebas = {}
-
 # 250, 415   390, 415
 # 250,560   390,560
 
 seguidor = Seguidor()
 
 cap = cv.VideoCapture("video1-horizontal.mp4")
+cap.get(cv.CAP_PROP_FPS)
 deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
 
+# Definir los puntos para el cuadro
 v_a = [250, 415]
 v_b = [390, 415]
 v_c = [390, 560]
@@ -25,6 +23,8 @@ v_f = [1117, 370]
 v_g = [1117, 505]
 v_h = [970, 505]
 
+mascara = 0
+
 
 def dibujar_area(a, b, c, d):
     pts = np.array([a, b, c, d], np.int32)
@@ -32,9 +32,12 @@ def dibujar_area(a, b, c, d):
     cv.polylines(frame, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
     return pts
 
-
+# dado un frame y aplicando filtros y operaciones morfologicas se obtiene el contorno
+# "de un objeto en movimiento"
 def configurar_contorno(frame):
+    global mascara
     mascara = deteccion.apply(frame)
+
     filtro = cv.GaussianBlur(mascara, (11, 11), 0)
 
     # umbral
@@ -47,7 +50,7 @@ def configurar_contorno(frame):
     contornos, _ = cv.findContours(cierre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     return contornos
 
-
+# extraer del contorno cordenadas, alto y ancho y pinta un rectangulo al rededor del objeto detectado
 def generar_detecciones(frame):
     detecciones = []
     contornos = configurar_contorno(frame)
@@ -83,13 +86,13 @@ def calcular_colision(coordenadas_contornos):
 
 
 while True:
-    ret, frame = cap.read()
+    ret, frame = cap.read() # lee un frame
 
     if not ret:
         cap.set(cv.CAP_PROP_POS_FRAMES, 0)
         continue  # reiniciar la reproducción
 
-    # Definir los puntos para el cuadro
+    # pintar pixeles para el area
     pts = dibujar_area(v_a, v_b, v_c, v_d)
     pts2 = dibujar_area(v_e, v_f, v_g, v_h)
 
@@ -101,6 +104,7 @@ while True:
 
     # muestra el video
     cv.imshow("Video", frame)
+    cv.imshow("Mascara", mascara)
     key = cv.waitKey(int(1000 / 25))  # Esperar 1 milisegundo
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
