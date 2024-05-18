@@ -13,17 +13,7 @@ seguidor = Seguidor()
 # 90,0   90, 720
 # 1094,0   1094,720
 
-punto_inicial = 90
-punto_final = 1094
-ancho_video_total = 1280
-ancho_area_interes = punto_final - punto_inicial
-ancho_en_cm = 90
-total_area_cm = (ancho_en_cm * ancho_area_interes) / ancho_video_total
-
-v_a = [90, 0]
-v_b = [1094, 0]
-v_c = [1094, 720]
-v_d = [90, 720]
+punto_inicial = 0
 
 is_primer_frame = True
 is_frame_anterior = True
@@ -92,10 +82,10 @@ def get_tiempo_distancia_inicial(vector_velocidad):
     return tiempo_inicial, distancia_inicial_cm
 
 
-def get_tiempo_distancia_final(x):
+def get_tiempo_distancia_final(x, ancho_frame_cm, distancia_cm):
     tiempo_final = time.time() - tiempo_entra_area
     distancia_px = x - punto_inicial
-    distancia_final_cm = parse_px_to_cm(distancia_px)
+    distancia_final_cm = parse_px_to_cm(distancia_px, ancho_frame_cm, distancia_cm)
     return tiempo_final, distancia_final_cm
 
 
@@ -110,8 +100,8 @@ def get_velocidad_inicial(velocidad_punto_inicial, vector_velocidad):
     return velocidad_inicial
 
 
-def parse_px_to_cm(distancia_px):
-    return (distancia_px * total_area_cm) / ancho_area_interes
+def parse_px_to_cm(distancia_px, ancho_frame_px, distancia_cm):
+    return (distancia_px * distancia_cm) / ancho_frame_px
 
 
 def get_velocidad_instantanea(ti, tf, di, df):
@@ -128,21 +118,22 @@ def get_aceleracion(ti, tf, vi, vf):
     return aceleracion
 
 
-def calcular_velocidad_inicial(x):
+def calcular_velocidad_inicial(x, ancho_frame_px, distancia_cm):
     tiempo_inicial_i = 0
     tiempo_final_i = time.time()
     distancia_inicial_i = 0
     distancia_final_i_px = x
-    distancia_final_cm = parse_px_to_cm(distancia_final_i_px)
+    distancia_final_cm = parse_px_to_cm(distancia_final_i_px, ancho_frame_px, distancia_cm)
     velocidad = get_velocidad_instantanea(tiempo_inicial_i, tiempo_final_i, distancia_inicial_i, distancia_final_cm)
     return velocidad
 
 
-def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocidad):
+def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocidad, distancia_cm):
     global tiempo_entra_area, idFrameAnterior, is_velocidad_inicial, velocidad_punto_inicial
 
     if frame is not None:
         height, width = frame.shape[:2]
+        print(f"h={height} w={width}")
 
     for coordenada in coordenadas_contornos:
         x, y, ancho, alto, id = coordenada
@@ -151,9 +142,9 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
         if height == alto or width == ancho:
             continue
 
-        if x <= punto_inicial:
+        if x <= punto_inicial and (frame is not None):
             is_velocidad_inicial = True
-            velocidad_punto_inicial = calcular_velocidad_inicial(x)
+            velocidad_punto_inicial = calcular_velocidad_inicial(x, width, distancia_cm)
 
         # calcular los centros
         cx = int(x + ancho / 2)
@@ -167,7 +158,7 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
             cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
 
             tiempo_inicial, distancia_inicial = get_tiempo_distancia_inicial(vector_velocidad)
-            tiempo_final, distancia_final = get_tiempo_distancia_final(x)
+            tiempo_final, distancia_final = get_tiempo_distancia_final(x, width, distancia_cm)
             velocidad_inicial = get_velocidad_inicial(velocidad_punto_inicial, vector_velocidad)
 
             velocidad_final = get_velocidad_instantanea(tiempo_inicial, tiempo_final,
@@ -191,7 +182,7 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
             return vector_velocidad
 
 
-def procesar_video(path, distancia):
+def procesar_video(path, distancia_cm):
     cap = cv.VideoCapture(path)
     fps = cap.get(cv.CAP_PROP_FPS)
     vector_velocidad = {}
@@ -211,13 +202,19 @@ def procesar_video(path, distancia):
             tiempo_entra_area = 0
             break  # reiniciar la reproducción
 
+        height, width = frame.shape[:2]
+        v_a = [0, 0]
+        v_b = [width, 0]
+        v_c = [width, height]
+        v_d = [0, height]
+
         pts = dibujar_area(v_a, v_b, v_c, v_d, frame)
 
         detecciones = generar_detecciones(frame)
 
         coordenadas_contornos = seguidor.rastrear(detecciones)
 
-        calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocidad)
+        calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocidad, distancia_cm)
 
         if vector_velocidad:
             print("vector_velocidad = ", vector_velocidad)
@@ -240,4 +237,4 @@ def procesar_video(path, distancia):
     # Cerrar todas las ventanas
     cv.destroyAllWindows()
 
-procesar_video("video1280-horizontal.mp4", 1)
+procesar_video("video1280-horizontal.mp4", 90)
