@@ -82,27 +82,47 @@ def get_tiempo_entra_area(x, ancho):
 
 
 def get_tiempo_distancia_inicial(vector_velocidad):
+    """
+    Retorna el tiempo inicial y la distancia inicial en metros.
+    :param vector_velocidad: el vector velocidad
+    :return: tiempo y distancia inicial en metros.
+    """
     global is_primer_frame
     if is_primer_frame:
         is_primer_frame = False
         tiempo_inicial = 0
-        distancia_inicial_cm = 0
+        distancia_inicial_m = 0
     else:
         _, tiempo_final_anterior, _, distancia_final_anterior, _, _, _ = vector_velocidad[idFrameAnterior]
         tiempo_inicial = tiempo_final_anterior
-        distancia_inicial_cm = distancia_final_anterior
+        distancia_inicial_m = distancia_final_anterior
 
-    return tiempo_inicial, distancia_inicial_cm
+    return tiempo_inicial, distancia_inicial_m
 
 
-def get_tiempo_distancia_final(x, ancho_frame_cm, distancia_cm):
+def get_tiempo_distancia_final(x, ancho_frame_px, distancia_cm):
+    """
+    Retorna el tiempo final y la distancia final en metros
+    :param x: punto x en el plano
+    :param ancho_frame_px: ancho del frame completo
+    :param distancia_cm: distancia fija que el usuario midió en cm
+    :return:
+    """
     tiempo_final = time.time() - tiempo_entra_area
     distancia_px = x - punto_inicial
-    distancia_final_cm = parse_px_to_cm(distancia_px, ancho_frame_cm, distancia_cm)
-    return tiempo_final, distancia_final_cm
+    distancia_final_cm = parse_px_to_cm(distancia_px, ancho_frame_px, distancia_cm)
+    distancia_final_m = distancia_final_cm/100
+
+    return tiempo_final, distancia_final_m
 
 
 def get_velocidad_inicial(velocidad_punto_inicial, vector_velocidad):
+    """
+    Retorna la velocidad inicial en m/s
+    :param velocidad_punto_inicial:
+    :param vector_velocidad:
+    :return: velocidad_inicial (m/s)
+    """
     global is_velocidad_inicial
     if is_velocidad_inicial:
         is_velocidad_inicial = False
@@ -119,7 +139,7 @@ def parse_px_to_cm(distancia_px, ancho_frame_px, distancia_cm):
 
 def get_velocidad_instantanea(ti, tf, di, df):
     """
-    V = (distancia_final -distancia_inicial) / (velocidad_final - velocidad_inicial)
+    V_m/s = (distancia_final -distancia_inicial) / (tiempo_final - tiempo_inicial)
 
     """
     velocidad_instantanea = 0
@@ -136,12 +156,15 @@ def get_aceleracion(ti, tf, vi, vf):
 
 
 def calcular_velocidad_inicial(x, ancho_frame_px, distancia_cm):
+    """Retorna la velocidad en m/s
+    """
     tiempo_inicial_i = 0
     tiempo_final_i = time.time()
     distancia_inicial_i = 0
     distancia_final_i_px = x
     distancia_final_cm = parse_px_to_cm(distancia_final_i_px, ancho_frame_px, distancia_cm)
-    velocidad = get_velocidad_instantanea(tiempo_inicial_i, tiempo_final_i, distancia_inicial_i, distancia_final_cm)
+    distancia_final_m = (distancia_final_cm/100)
+    velocidad = get_velocidad_instantanea(tiempo_inicial_i, tiempo_final_i, distancia_inicial_i, distancia_final_m)
     return velocidad
 
 
@@ -175,7 +198,9 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
             cv.circle(frame, (cx, cy), 10, (255, 255, 255), -1)
 
             tiempo_inicial, distancia_inicial = get_tiempo_distancia_inicial(vector_velocidad)
+
             tiempo_final, distancia_final = get_tiempo_distancia_final(x, width, distancia_cm)
+
             velocidad_inicial = get_velocidad_inicial(velocidad_punto_inicial, vector_velocidad)
 
             velocidad_final = get_velocidad_instantanea(tiempo_inicial, tiempo_final,
@@ -191,9 +216,9 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
             )
             idFrameAnterior = id
 
-            cv.putText(frame, f'{round(velocidad_final, 2)} cm/s', (x, y - 15), cv.FONT_HERSHEY_SIMPLEX, 1,
+            cv.putText(frame, f'{round(velocidad_final, 2)} m/s', (x, y - 15), cv.FONT_HERSHEY_SIMPLEX, 1,
                        (0, 255, 255), 2)
-            cv.putText(frame, f'{round(aceleracion, 4)} cm/s^2', (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255),
+            cv.putText(frame, f'{round(aceleracion, 4)} m/s^2', (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255),
                        2)
 
             return vector_velocidad
@@ -259,7 +284,9 @@ def procesar_video(path, distancia_cm):
     cv.destroyAllWindows()
 
 # procesar_video("videos/amarilla_rebota.mp4", 210)
-procesar_video("videos/bola_amarilla_baja_velocidad.mp4", 210)
+# procesar_video("videos/bola_amarilla_baja_velocidad.mp4", 210)
+procesar_video("videos/bola_amarilla_ls_mod_720x_1280.mp4", 204)
+# procesar_video("videos/bola_amarilla_ls_mod.mp4", 204)
 # procesar_video("videos/bola_naranja_vivo.mp4", 210)
 # procesar_video("video1280-horizontal.mp4", 90)
 # procesar_video("videos/disco.mp4", 210)
