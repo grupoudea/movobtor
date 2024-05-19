@@ -22,7 +22,7 @@ def generar_grafica_distancia_x_tiempo(vector_velocidad):
     plt.plot(tiempo_final, distancia_final, 'x-', label="Distancia Final")
     plt.xlabel("Tiempo")
     plt.ylabel("Distancia")
-    plt.title("Gráfica de Tiempo vs Distancia")
+    plt.title("Gráfica de Distancia vs tiempo")
 
 
     for i, key in enumerate(data.keys()):
@@ -59,7 +59,7 @@ def generar_grafica_velocidad_x_tiempo(vector_velocidad):
     plt.plot(tiempo_final, velocidad_final, 'x-', label="Velocidad Final")
     plt.xlabel("Tiempo")
     plt.ylabel("Velocidad")
-    plt.title("Gráfica de Tiempo vs Velocidad")
+    plt.title("Gráfica de Velocidad vs Tiempo ")
 
 
     for i, key in enumerate(data.keys()):

@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 
+from detececcion_velocidad import procesar_video
+
 
 def select_video():
     filepath = filedialog.askopenfilename(
@@ -33,6 +35,7 @@ def show_info():
 def process_video(video_path, distance):
     print(f"Video: {video_path}")
     print(f"Distancia: {distance}")
+    procesar_video(video_path, distance)
     speed = 15
     time = 4
     speed_var.set(f"Velocidad: {speed} cm/s")
