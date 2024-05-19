@@ -24,20 +24,32 @@ velocidad_punto_inicial = 0
 
 # [id, ti, tf, xi, xf, vi, vf, a]
 # vector_velocidad = {}
+mascara = 0
 
 
 def configurar_contorno(frame):
+    global mascara
     mascara = deteccion.apply(frame)
-    filtro = cv.GaussianBlur(mascara, (11, 11), 0)
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
+
+
+    # filtro = cv.GaussianBlur(mascara, (11, 11), 0)
 
     # umbral
-    _, umbral = cv.threshold(filtro, 50, 255, cv.THRESH_BINARY)
+    _, umbral = cv.threshold(mascara, 50, 255, cv.THRESH_BINARY)
 
     # dilatamos
-    dilatacion = cv.dilate(umbral, np.ones((3, 3)))
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-    cierre = cv.morphologyEx(dilatacion, cv.MORPH_CLOSE, kernel)
-    contornos, _ = cv.findContours(cierre, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    # dilatacion = cv.dilate(umbral, np.ones((3, 3)))
+
+    # cv.imshow("dilatacion", dilatacion)
+
+    cierre = cv.morphologyEx(umbral, cv.MORPH_OPEN, kernel)
+    dilatacion = cv.dilate(cierre, np.ones((3, 3)))
+
+
+    cv.imshow("dilatacion", dilatacion)
+
+    contornos, _ = cv.findContours(dilatacion, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     return contornos
 
 
@@ -53,9 +65,10 @@ def generar_detecciones(frame):
     contornos = configurar_contorno(frame)
     for contorno in contornos:
         area = cv.contourArea(contorno)
-        if area > 1000:
+        print(f"area: {area}")
+        if area > 40:
             x, y, w, h = cv.boundingRect(contorno)
-            cv.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 0), 3)
+            cv.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 3)
             detecciones.append([x, y, w, h])
     return detecciones
 
@@ -105,6 +118,10 @@ def parse_px_to_cm(distancia_px, ancho_frame_px, distancia_cm):
 
 
 def get_velocidad_instantanea(ti, tf, di, df):
+    """
+    V = (distancia_final -distancia_inicial) / (velocidad_final - velocidad_inicial)
+
+    """
     velocidad_instantanea = 0
     if (tf - ti) > 0:
         velocidad_instantanea = (df - di) / (tf - ti)
@@ -155,7 +172,7 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
 
         a2 = cv.pointPolygonTest(pts, (cx, cy), False)
         if a2 >= 0:
-            cv.circle(frame, (cx, cy), 3, (247, 17, 130), -1)
+            cv.circle(frame, (cx, cy), 10, (255, 255, 255), -1)
 
             tiempo_inicial, distancia_inicial = get_tiempo_distancia_inicial(vector_velocidad)
             tiempo_final, distancia_final = get_tiempo_distancia_final(x, width, distancia_cm)
@@ -202,6 +219,8 @@ def procesar_video(path, distancia_cm):
             tiempo_entra_area = 0
             break  # reiniciar la reproducción
 
+        frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
+
         height, width = frame.shape[:2]
         v_a = [0, 0]
         v_b = [width, 0]
@@ -222,6 +241,8 @@ def procesar_video(path, distancia_cm):
         # Muestra el video
         if frame is not None:
             cv.imshow("Video", frame)
+            # cv.imshow("Mascara", mascara)
+
         else:
             break
 
@@ -237,4 +258,8 @@ def procesar_video(path, distancia_cm):
     # Cerrar todas las ventanas
     cv.destroyAllWindows()
 
-procesar_video("video1280-horizontal.mp4", 90)
+# procesar_video("videos/amarilla_rebota.mp4", 210)
+procesar_video("videos/bola_amarilla_baja_velocidad.mp4", 210)
+# procesar_video("videos/bola_naranja_vivo.mp4", 210)
+# procesar_video("video1280-horizontal.mp4", 90)
+# procesar_video("videos/disco.mp4", 210)

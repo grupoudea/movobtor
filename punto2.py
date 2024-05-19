@@ -218,7 +218,7 @@ while True:
     else:
         break
 
-    key = cv.waitKey(120)  # Esperar 1 milisegundo
+    key = cv.waitKey(240)  # Esperar 1 milisegundo
 
     if key == ord('q'):  # Presionar 'q' para salir del bucle
         break
