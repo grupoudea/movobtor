@@ -3,7 +3,7 @@ import time
 import cv2 as cv
 import numpy as np
 
-from grafica import generar_grafica_distancia_x_tiempo, generar_grafica_velocidad_x_tiempo
+from grafica import generar_grafica_distancia_x_tiempo, generar_grafica_velocidad_x_tiempo, generar_grafica
 from seguidor import Seguidor
 
 deteccion = cv.createBackgroundSubtractorMOG2(history=10000, varThreshold=100)
@@ -13,7 +13,7 @@ seguidor = Seguidor()
 # 90,0   90, 720
 # 1094,0   1094,720
 
-punto_inicial = 0
+punto_inicial = 90
 
 is_primer_frame = True
 is_frame_anterior = True
@@ -23,8 +23,20 @@ idFrameAnterior = 0
 velocidad_punto_inicial = 0
 
 # [id, ti, tf, xi, xf, vi, vf, a]
-# vector_velocidad = {}
+vector_velocidad = {}
+vector_velocidad2 = {}
 mascara = 0
+index_vector = 0
+
+padding_muestras = 4
+
+m = 0.5  # masa de la pelota en kg
+g = 9.81  # gravedad en m/s^2
+mu = 0.3  # coeficiente de fricción (ajusta según la superficie)
+t_inicial = 0
+
+velocities = []
+times = []
 
 
 def configurar_contorno(frame):
@@ -66,7 +78,7 @@ def generar_detecciones(frame):
     for contorno in contornos:
         area = cv.contourArea(contorno)
         print(f"area: {area}")
-        if area > 40:
+        if area > 670:
             x, y, w, h = cv.boundingRect(contorno)
             cv.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 3)
             detecciones.append([x, y, w, h])
@@ -169,7 +181,8 @@ def calcular_velocidad_inicial(x, ancho_frame_px, distancia_cm):
 
 
 def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocidad, distancia_cm):
-    global tiempo_entra_area, idFrameAnterior, is_velocidad_inicial, velocidad_punto_inicial
+    global tiempo_entra_area, idFrameAnterior, is_velocidad_inicial, velocidad_punto_inicial, index_vector, t_inicial
+
 
     if frame is not None:
         height, width = frame.shape[:2]
@@ -206,15 +219,38 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
             velocidad_final = get_velocidad_instantanea(tiempo_inicial, tiempo_final,
                                                         distancia_inicial, distancia_final)
 
+
             aceleracion = get_aceleracion(tiempo_inicial, tiempo_final, velocidad_inicial, velocidad_final)
 
-            vector_velocidad[id] = (
+            vector_velocidad[index_vector] = (
                 tiempo_inicial, tiempo_final,
                 distancia_inicial, distancia_final,
                 velocidad_inicial, velocidad_final,
                 aceleracion
             )
-            idFrameAnterior = id
+
+            if len(vector_velocidad) >= padding_muestras:
+                # friccion
+                _, _, _, _, _, vel_final, _ = vector_velocidad[index_vector]
+                delta_t = tiempo_final - tiempo_inicial
+
+                F_friction = mu * m * g
+                a = -F_friction / m  # aceleración debido a la fricción
+                vel_final += a * (delta_t)
+                if vel_final < 0:
+                    vel_final = 0  # la velocidad no puede ser negativa
+                t_inicial += delta_t
+                velocities.append(vel_final)
+                times.append(t_inicial)
+
+
+            print("===================================")
+            print("ID: ", index_vector)
+            print(vector_velocidad[index_vector])
+            print("===================================")
+            idFrameAnterior = index_vector
+
+            index_vector = index_vector + 1
 
             cv.putText(frame, f'{round(velocidad_final, 2)} m/s', (x, y - 15), cv.FONT_HERSHEY_SIMPLEX, 1,
                        (0, 255, 255), 2)
@@ -238,19 +274,24 @@ def procesar_video(path, distancia_cm):
             cap.set(cv.CAP_PROP_POS_FRAMES, 0)
             generar_grafica_distancia_x_tiempo(vector_velocidad)
             generar_grafica_velocidad_x_tiempo(vector_velocidad)
+            generar_grafica(times, velocities)
+
             is_primer_frame = True
             is_frame_anterior = True
             vector_velocidad = {}
             tiempo_entra_area = 0
             break  # reiniciar la reproducción
 
-        frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
-
         height, width = frame.shape[:2]
-        v_a = [0, 0]
+
+        if height > width:
+            frame = cv.rotate(frame, cv.ROTATE_90_CLOCKWISE)
+            height, width = frame.shape[:2]
+
+        v_a = [punto_inicial, 0]
         v_b = [width, 0]
         v_c = [width, height]
-        v_d = [0, height]
+        v_d = [punto_inicial, height]
 
         pts = dibujar_area(v_a, v_b, v_c, v_d, frame)
 
@@ -271,7 +312,7 @@ def procesar_video(path, distancia_cm):
         else:
             break
 
-        key = cv.waitKey(120)  # Esperar 1 milisegundo
+        key = cv.waitKey(int(1000 / fps))  # Esperar 1 milisegundo
 
         if key == ord('q'):  # Presionar 'q' para salir del bucle
             break
@@ -283,10 +324,10 @@ def procesar_video(path, distancia_cm):
     # Cerrar todas las ventanas
     cv.destroyAllWindows()
 
-# procesar_video("videos/amarilla_rebota.mp4", 210)
+# procesar_video("videos/amarilla_rebota.mp4", 204) # muchas pelotas
 # procesar_video("videos/bola_amarilla_baja_velocidad.mp4", 210)
-procesar_video("videos/bola_amarilla_ls_mod_720x_1280.mp4", 204)
+# procesar_video("videos/bola_amarilla_ls_mod_720x_1280.mp4", 204)
 # procesar_video("videos/bola_amarilla_ls_mod.mp4", 204)
-# procesar_video("videos/bola_naranja_vivo.mp4", 210)
+procesar_video("videos/bola_naranja_vivo.mp4", 204)
 # procesar_video("video1280-horizontal.mp4", 90)
-# procesar_video("videos/disco.mp4", 210)
+# procesar_video("videos/disco.mp4", 204)

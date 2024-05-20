@@ -1,5 +1,15 @@
 import matplotlib.pyplot as plt
 
+
+def generar_grafica(times, velocities):
+    plt.plot(times, velocities)
+    plt.xlabel('Tiempo (s)')
+    plt.ylabel('Velocidad (m/s)')
+    plt.title('Velocidad vs Tiempo con Fricción del Suelo')
+    plt.grid(True)
+    plt.show()
+
+
 def generar_grafica_distancia_x_tiempo(vector_velocidad):
     data = vector_velocidad
 
@@ -17,8 +27,8 @@ def generar_grafica_distancia_x_tiempo(vector_velocidad):
         distancia_final.append(tupla[3])
         velocidad_instantanea.append(tupla[5])
 
-    plt.figure(figsize=(12, 6))
-    plt.plot(tiempo_inicial, distancia_inicial, 'o-', label="Distancia Inicial")
+    plt.figure(figsize=(36, 18))
+   #  plt.plot(tiempo_inicial, distancia_inicial, 'o-', label="Distancia Inicial")
     plt.plot(tiempo_final, distancia_final, 'x-', label="Distancia Final")
     plt.xlabel("Tiempo")
     plt.ylabel("Distancia")
@@ -54,7 +64,7 @@ def generar_grafica_velocidad_x_tiempo(vector_velocidad):
         velocidad_final.append(tupla[5])
         aceleracion.append(tupla[6])
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(36, 18))
     plt.plot(tiempo_inicial, velocidad_inicial, 'o-', label="Velocidad Inicial")
     plt.plot(tiempo_final, velocidad_final, 'x-', label="Velocidad Final")
     plt.xlabel("Tiempo")
