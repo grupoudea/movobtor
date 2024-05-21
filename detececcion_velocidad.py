@@ -23,8 +23,6 @@ idFrameAnterior = 0
 velocidad_punto_inicial = 0
 
 # [id, ti, tf, xi, xf, vi, vf, a]
-vector_velocidad = {}
-vector_velocidad2 = {}
 mascara = 0
 index_vector = 0
 
@@ -38,12 +36,13 @@ t_inicial = 0
 velocities = []
 times = []
 
+vector_velocidad = {}
+
 
 def configurar_contorno(frame):
     global mascara
     mascara = deteccion.apply(frame)
     kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-
 
     # filtro = cv.GaussianBlur(mascara, (11, 11), 0)
 
@@ -57,7 +56,6 @@ def configurar_contorno(frame):
 
     cierre = cv.morphologyEx(umbral, cv.MORPH_OPEN, kernel)
     dilatacion = cv.dilate(cierre, np.ones((3, 3)))
-
 
     cv.imshow("dilatacion", dilatacion)
 
@@ -123,7 +121,7 @@ def get_tiempo_distancia_final(x, ancho_frame_px, distancia_cm):
     tiempo_final = time.time() - tiempo_entra_area
     distancia_px = x - punto_inicial
     distancia_final_cm = parse_px_to_cm(distancia_px, ancho_frame_px, distancia_cm)
-    distancia_final_m = distancia_final_cm/100
+    distancia_final_m = distancia_final_cm / 100
 
     return tiempo_final, distancia_final_m
 
@@ -175,7 +173,7 @@ def calcular_velocidad_inicial(x, ancho_frame_px, distancia_cm):
     distancia_inicial_i = 0
     distancia_final_i_px = x
     distancia_final_cm = parse_px_to_cm(distancia_final_i_px, ancho_frame_px, distancia_cm)
-    distancia_final_m = (distancia_final_cm/100)
+    distancia_final_m = (distancia_final_cm / 100)
     velocidad = get_velocidad_instantanea(tiempo_inicial_i, tiempo_final_i, distancia_inicial_i, distancia_final_m)
     return velocidad
 
@@ -219,7 +217,6 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
             velocidad_final = get_velocidad_instantanea(tiempo_inicial, tiempo_final,
                                                         distancia_inicial, distancia_final)
 
-
             aceleracion = get_aceleracion(tiempo_inicial, tiempo_final, velocidad_inicial, velocidad_final)
 
             vector_velocidad[index_vector] = (
@@ -243,7 +240,6 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
                 velocities.append(vel_final)
                 times.append(t_inicial)
 
-
             print("===================================")
             print("ID: ", index_vector)
             print(vector_velocidad[index_vector])
@@ -263,8 +259,8 @@ def calcular_vector_velocidad(frame, coordenadas_contornos, pts, vector_velocida
 def procesar_video(path, distancia_cm):
     cap = cv.VideoCapture(path)
     fps = cap.get(cv.CAP_PROP_FPS)
+    global vector_velocidad, is_primer_frame, is_frame_anterior, index_vector, tiempo_entra_area, is_velocidad_inicial
     vector_velocidad = {}
-
     print("fps: ", fps)
 
     while True:
@@ -272,13 +268,13 @@ def procesar_video(path, distancia_cm):
 
         if not ret:
             cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-            generar_grafica_distancia_x_tiempo(vector_velocidad)
-            generar_grafica_velocidad_x_tiempo(vector_velocidad)
-            generar_grafica(times, velocities)
-
+            #generar_grafica_distancia_x_tiempo(vector_velocidad)
+            #generar_grafica_velocidad_x_tiempo(vector_velocidad)
+            #generar_grafica(times, velocities)
+            index_vector = 0
+            is_velocidad_inicial = True
             is_primer_frame = True
             is_frame_anterior = True
-            vector_velocidad = {}
             tiempo_entra_area = 0
             break  # reiniciar la reproducción
 
@@ -324,10 +320,22 @@ def procesar_video(path, distancia_cm):
     # Cerrar todas las ventanas
     cv.destroyAllWindows()
 
-# procesar_video("videos/amarilla_rebota.mp4", 204) # muchas pelotas
-# procesar_video("videos/bola_amarilla_baja_velocidad.mp4", 210)
-# procesar_video("videos/bola_amarilla_ls_mod_720x_1280.mp4", 204)
-# procesar_video("videos/bola_amarilla_ls_mod.mp4", 204)
-procesar_video("videos/bola_naranja_vivo.mp4", 204)
-# procesar_video("video1280-horizontal.mp4", 90)
-# procesar_video("videos/disco.mp4", 204)
+
+def iniciar_procesamiento(path, distancia):
+    if path is None:
+        return
+    else:
+        procesar_video(path, distancia)
+        _, tiempo_final_anterior, _, distancia_final_anterior, _, vel_final, _ = vector_velocidad[len(vector_velocidad)-1]
+
+        return tiempo_final_anterior, vel_final
+
+
+
+# iniciar_procesamiento("videos/0", 204) # muchas pelotas
+# iniciar_procesamiento("videos/bola_amarilla_baja_velocidad.mp4", 210)
+# iniciar_procesamiento("videos/bola_amarilla_ls_mod_720x_1280.mp4", 204)
+# iniciar_procesamiento("videos/bola_amarilla_ls_mod.mp4", 204)
+# iniciar_procesamiento("videos/bola_naranja_vivo.mp4", 204)
+# iniciar_procesamiento("video1280-horizontal.mp4", 90)
+# iniciar_procesamiento("videos/disco.mp4", 204)

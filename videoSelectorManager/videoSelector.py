@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 
-from detececcion_velocidad import procesar_video
+from detececcion_velocidad import iniciar_procesamiento
 
 
 def select_video():
@@ -35,12 +35,14 @@ def show_info():
 def process_video(video_path, distance):
     print(f"Video: {video_path}")
     print(f"Distancia: {distance}")
-    procesar_video(video_path, distance)
-    speed = 15
-    time = 4
-    speed_var.set(f"Velocidad: {speed} cm/s")
-    time_var.set(f"Tiempo: {time} s")
-    result_var.set(f"El objeto se mueve a {speed} cm/s, en una distancia de {distance_entry.get()} cm, en {time} s")
+    tiempo, velocidad = iniciar_procesamiento(video_path, distance)
+
+    speed = velocidad
+    time = tiempo
+    speed_var.set("Velocidad: {:.3f} m/s".format(speed))
+    time_var.set("Tiempo: {:.3f} s".format(time))
+    result_var.set(
+        f"El objeto se mueve a {speed:.3f} cm/s, en una distancia de {distance_entry.get()} cm, en {time:.3f} s")
 
 
 def exit_app():
@@ -86,9 +88,11 @@ info_label = tk.Label(root,
 info_label.pack(pady=10, padx=10, anchor="w")
 
 # Seleccionar el video
-video_label = tk.Label(root, text="Seleccionar video:", wraplength=380, font=label_bold_font, justify="left", fg="white", bg="#001f3f")
+video_label = tk.Label(root, text="Seleccionar video:", wraplength=380, font=label_bold_font, justify="left",
+                       fg="white", bg="#001f3f")
 video_label.pack(pady=5, padx=10, anchor="w")
-select_video_button = tk.Button(root, text="Seleccionar", command=select_video, font=button_font, fg="white", bg="#0056b3")
+select_video_button = tk.Button(root, text="Seleccionar", command=select_video, font=button_font, fg="white",
+                                bg="#0056b3")
 select_video_button.pack(pady=10, padx=10, anchor="w")
 
 # Ruta del video
@@ -96,7 +100,8 @@ video_path_entry = tk.Entry(root, width=50, font=entry_font)
 video_path_entry.pack(pady=5, padx=10, anchor="w")
 
 # Distancia
-distance_label = tk.Label(root, text="Distancia (cm):", wraplength=380, font=label_bold_font, justify="left", fg="white", bg="#001f3f")
+distance_label = tk.Label(root, text="Distancia (cm):", wraplength=380, font=label_bold_font, justify="left",
+                          fg="white", bg="#001f3f")
 distance_label.pack(pady=5, padx=10, anchor="w")
 distance_entry = tk.Entry(root, width=50, font=entry_font)
 distance_entry.pack(pady=5, padx=10, anchor="w")
@@ -115,7 +120,8 @@ time_label = tk.Label(root, textvariable=time_var, font=label_bold_font, fg="whi
 time_label.pack(pady=3, padx=10, anchor="w")
 
 result_var = tk.StringVar()
-result_label = tk.Label(root, textvariable=result_var, font=label_font, wraplength=380, justify="left", fg="white", bg="#001f3f")
+result_label = tk.Label(root, textvariable=result_var, font=label_font, wraplength=380, justify="left", fg="white",
+                        bg="#001f3f")
 result_label.pack(pady=3, padx=10, anchor="w")
 
 # Bucle principal de la ventana
